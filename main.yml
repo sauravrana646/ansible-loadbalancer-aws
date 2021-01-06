@@ -47,7 +47,7 @@
       enabled : yes
   - name : Download webpages
     git : 
-      repo : https://github.com/sauravrana646/ansible_arth1
+      repo : https://github.com/sauravrana646/webpage
       clone : yes
       dest : /var/www/html
 
