@@ -1,0 +1,110 @@
+- name : Launch Webservers
+  hosts : localhost
+  gather_facts : no
+  vars_files : 
+    - credentials.yml
+    - web_vars.yml
+  tasks : 
+    - name : boto for aws
+      pip : 
+        name : [boto, boto3 ,botocore]
+        state : present
+    - name : Launch ec2 instance
+      ec2:
+        assign_public_ip: true
+        aws_access_key   : "{{id}}"
+        aws_secret_key   : "{{key}}"
+        vpc_subnet_id    : "{{subnet}}"
+        group_id         : "{{sg}}"
+        wait             : yes
+        key_name         : "{{key_name}}"
+        region           : "{{region}}"
+        instance_type    : "{{instance_type}}"
+        image            : "{{image_id}}"
+        instance_tags:
+          env : Webserver
+        count_tag:
+            env : Webserver
+        exact_count: "{{count}}"
+    - name : Refresh Inventory
+      meta : refresh_inventory
+
+- name : Configure Webservers
+  hosts : tag_env_Webserver
+  remote_user : ec2-user
+  become : yes
+  vars : 
+    - ansible_private_key_file : /root/.ssh/ansiblekey.pem
+  tasks : 
+  - name : Install httpd and git
+    package :
+      name : [httpd,git]
+      state : present
+  - name : Starting services
+    service : 
+      name : httpd
+      state : started
+      enabled : yes
+  - name : Download webpages
+    git : 
+      repo : https://github.com/sauravrana646/ansible_arth1
+      clone : yes
+      dest : /var/www/html
+
+- name : Launch Loadbalancer
+  hosts : localhost
+  gather_facts : no
+  vars_files : 
+    - credentials.yml
+    - lb_vars.yml
+  tasks : 
+    - name : Launch ec2 instance
+      ec2:
+        assign_public_ip: true
+        aws_access_key   : "{{id}}"
+        aws_secret_key   : "{{key}}"
+        vpc_subnet_id    : "{{subnet}}"
+        group_id         : "{{sg}}"
+        wait             : yes
+        key_name         : "{{key_name}}"
+        region           : "{{region}}"
+        instance_type    : "{{instance_type}}"
+        image            : "{{image_id}}"
+        instance_tags:
+          env : Loadbalancer
+        count_tag:
+            env : Loadbalancer
+        exact_count: "{{count}}"
+    - name : Refresh Inventory
+      meta : refresh_inventory
+    - pause :
+        seconds : 20
+
+- name : Configure Loadbalancer
+  hosts : tag_env_Loadbalancer
+  remote_user : ec2-user  
+  become : yes
+  vars : 
+    - ansible_private_key_file : /root/.ssh/ansiblekey.pem
+    - bind_port : 80
+  tasks :   
+  - name : Install haproxy
+    package : 
+      name : haproxy
+      state : present
+  - name : Start services
+    service : 
+      name : haproxy
+      state : started
+  - name : Configure Backend
+    template : 
+      src : haproxy_templ.j2
+      dest : /etc/haproxy/haproxy.cfg
+    notify : restart_haproxy
+
+
+  handlers : 
+    - name : restart_haproxy
+      service : 
+        name : haproxy
+        state : restarted

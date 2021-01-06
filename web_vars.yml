@@ -1,0 +1,8 @@
+image_id  : ami-04b1ddd35fd71475a
+instance_type : t2.micro
+count : 2
+sg : sg-084ca8f053647508c
+key_name : ansiblekey
+subnet : subnet-d2707bba
+region : ap-south-1
+
